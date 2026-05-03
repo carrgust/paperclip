@@ -1,11 +1,20 @@
 import { Router } from "express";
+import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
+import { issues } from "@paperclipai/db";
 import { createGoalSchema, updateGoalSchema } from "@paperclipai/shared";
 import { trackGoalCreated } from "@paperclipai/shared/telemetry";
 import { validate } from "../middleware/validate.js";
 import { goalService, logActivity } from "../services/index.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 import { getTelemetryClient } from "../telemetry.js";
+
+const TERMINAL_GOAL_STATUSES = ["achieved", "cancelled"] as const;
+type TerminalGoalStatus = (typeof TERMINAL_GOAL_STATUSES)[number];
+
+function isTerminalGoalStatus(value: unknown): value is TerminalGoalStatus {
+  return typeof value === "string" && (TERMINAL_GOAL_STATUSES as readonly string[]).includes(value);
+}
 
 export function goalRoutes(db: Db) {
   const router = Router();
@@ -59,6 +68,43 @@ export function goalRoutes(db: Db) {
       return;
     }
     assertCompanyAccess(req, existing.companyId);
+
+    // Wave 1.2 — invariant: block transitions to achieved/archived while
+    // active issues remain linked. Prevents the "achieved goal carries live work"
+    // anti-pattern that pollutes inboxes and dashboards.
+    const requestedStatus = (req.body as { status?: unknown }).status;
+    if (
+      isTerminalGoalStatus(requestedStatus) &&
+      existing.status !== requestedStatus
+    ) {
+      const blockers = await db
+        .select({
+          id: issues.id,
+          identifier: issues.identifier,
+          status: issues.status,
+          title: issues.title,
+        })
+        .from(issues)
+        .where(
+          and(
+            eq(issues.goalId, id),
+            sql`${issues.status} NOT IN ('done', 'cancelled')`,
+          ),
+        )
+        .limit(50);
+      if (blockers.length > 0) {
+        res.status(422).json({
+          error: "goal_invariant_violation",
+          code: "active_issues_block_terminal_transition",
+          message: `Cannot transition goal to '${requestedStatus}' while ${blockers.length} active issue(s) remain linked. Move or close them first.`,
+          requestedStatus,
+          activeIssueCount: blockers.length,
+          blockers,
+        });
+        return;
+      }
+    }
+
     const goal = await svc.update(id, req.body);
     if (!goal) {
       res.status(404).json({ error: "Goal not found" });
