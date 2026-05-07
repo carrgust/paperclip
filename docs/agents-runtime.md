@@ -1,7 +1,7 @@
 # Agent Runtime Guide
 
 Status: User-facing guide
-Last updated: 2026-03-26
+Last updated: 2026-05-07
 Audience: Operators setting up and running agents in Paperclip
 
 ## 1. What this system does
@@ -49,6 +49,12 @@ External plugin adapters (install via the adapter manager or API):
 - `droid_local`: runs your local Factory Droid CLI (`@henkey/droid-paperclip-adapter`)
 
 For local CLI adapters (`claude_local`, `codex_local`, `opencode_local`, `hermes_local`, `droid_local`), Paperclip assumes the CLI is already installed and authenticated on the host machine.
+
+For `codex_local` specifically:
+
+- the default model lane is `gpt-5.3-codex`
+- Codex Fast mode is only supported on `gpt-5.4` out of the built-in model list; other built-in models ignore the fast-mode toggle
+- Paperclip reuses your existing local Codex auth/config (`$CODEX_HOME` or `~/.codex`), so model availability still depends on that local login; do not assume every listed model is available for every ChatGPT-account-backed Codex login
 
 ## 3.2 Runtime behavior
 
@@ -132,55 +138,3 @@ If the connection drops, the UI reconnects automatically.
 1. Disable timer or set a long interval
 2. Keep wake-on-assignment enabled
 3. Use child issues, comments, and on-demand wakeups for handoffs instead of loops that poll agents, sessions, or processes
-
-## 7.3 Safety-first loop
-
-1. Short timeout
-2. Conservative prompt
-3. Monitor errors + cancel quickly when needed
-4. Reset sessions when drift appears
-
-## 8. Troubleshooting
-
-If runs fail repeatedly:
-
-1. Check adapter command availability (e.g. `claude`/`codex`/`opencode`/`hermes` installed and logged in).
-2. Verify `cwd` exists and is accessible.
-3. Inspect run error + stderr excerpt, then full log.
-4. Confirm timeout is not too low.
-5. Reset session and retry.
-6. Pause agent if it is causing repeated bad updates.
-
-Typical failure causes:
-
-- CLI not installed/authenticated
-- bad working directory
-- malformed adapter args/env
-- prompt too broad or missing constraints
-- process timeout
-
-Claude-specific note:
-
-- If `ANTHROPIC_API_KEY` is set in adapter env or host environment, Claude uses API-key auth instead of subscription login. Paperclip surfaces this as a warning in environment tests, not a hard error.
-
-## 9. Security and risk notes
-
-Local CLI adapters run unsandboxed on the host machine.
-
-That means:
-
-- prompt instructions matter
-- configured credentials/env vars are sensitive
-- working directory permissions matter
-
-Start with least privilege where possible, and avoid exposing secrets in broad reusable prompts unless intentionally required.
-
-## 10. Minimal setup checklist
-
-1. Choose adapter (e.g. `claude_local`, `codex_local`, `opencode_local`, `hermes_local`, `cursor`, or `openclaw_gateway`). External plugins like `droid_local` are also available via the adapter manager.
-2. Set `cwd` to the target workspace (for local adapters).
-3. Optionally add a prompt template (`promptTemplate`) or use the managed instructions bundle.
-4. Configure heartbeat policy (timer and/or assignment wakeups).
-5. Trigger a manual wakeup.
-6. Confirm run succeeds and session/token usage is recorded.
-7. Watch live updates and iterate prompt/config.

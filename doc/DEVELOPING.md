@@ -196,6 +196,10 @@ For `codex_local`, Paperclip also manages a per-company Codex home under the ins
 
 - `~/.paperclip/instances/default/companies/<company-id>/codex-home`
 
+The `codex_local` adapter defaults to the `gpt-5.3-codex` model lane. If you enable Fast mode, the built-in supported fast lane is `gpt-5.4`; other built-in models keep running without Fast mode unless you manually enter a model ID that Codex itself accepts for fast mode.
+
+Because Paperclip seeds the managed home from your shared local Codex auth/config, supported model access still comes from that local login state. In practice, treat ChatGPT-account-backed Codex logins as account-dependent: do not assume every listed model ID is available unless your local `codex` login already supports it.
+
 If the `codex` CLI is not installed or not on `PATH`, `codex_local` agent runs fail at execution time with a clear adapter error. Quota polling uses a short-lived `codex app-server` subprocess: when `codex` cannot be spawned, that provider reports `ok: false` in aggregated quota results and the API server keeps running (it must not exit on a missing binary).
 
 Local adapters require their corresponding CLI/session setup on the machine running Paperclip. External adapters are installed through the adapter/plugin flow and should not require hardcoded imports in `server/` or `ui/`.
