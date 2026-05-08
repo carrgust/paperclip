@@ -236,6 +236,10 @@ const createIssueBaseSchema = z.object({
   executionWorkspacePreference: z.enum(ISSUE_EXECUTION_WORKSPACE_PREFERENCES).optional().nullable(),
   executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable(),
   labelIds: z.array(z.string().uuid()).optional(),
+  originKind: z.string().trim().min(1).max(120).optional().nullable(),
+  originId: z.string().trim().min(1).max(240).optional().nullable(),
+  originRunId: z.string().uuid().optional().nullable(),
+  originFingerprint: z.string().trim().min(1).max(240).optional().nullable(),
 });
 
 export const createIssueInputSchema = createIssueBaseSchema.extend({
