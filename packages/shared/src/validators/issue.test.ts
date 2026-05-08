@@ -153,6 +153,21 @@ describe("issue validators", () => {
     }).workMode).toBe("planning");
   });
 
+  it("accepts explicit origin fields on issue create", () => {
+    const parsed = createIssueSchema.parse({
+      title: "Mirror upstream hardening",
+      originKind: "plugin:operator.intake",
+      originId: "operator:RES-2272-followup-upstream-pr-2026-05-08",
+      originRunId: "33333333-3333-4333-8333-333333333333",
+      originFingerprint: "operator:RES-2272-followup-upstream-pr",
+    });
+
+    expect(parsed.originKind).toBe("plugin:operator.intake");
+    expect(parsed.originId).toBe("operator:RES-2272-followup-upstream-pr-2026-05-08");
+    expect(parsed.originRunId).toBe("33333333-3333-4333-8333-333333333333");
+    expect(parsed.originFingerprint).toBe("operator:RES-2272-followup-upstream-pr");
+  });
+
   it("rejects unknown issue work modes", () => {
     expect(createIssueSchema.safeParse({ title: "Plan first", workMode: "normal" }).success).toBe(false);
     expect(suggestedTaskDraftSchema.safeParse({
